@@ -38,6 +38,83 @@ Criar uma plataforma de modernização gradual (sem “big bang”) para substit
 - Medir uso e erros por tela migrada.
 - Desativar gradualmente módulos Vaadin quando equivalentes estiverem estáveis.
 
+## Como executar agora (e começar a gerar código)
+
+### Pré-requisitos
+- Java 17+
+- Node 20+
+- Docker + Docker Compose
+- Git
+
+### 1) Criar a estrutura base
+```bash
+mkdir -p migracao-vaadin/{backend-api,frontend-react,shared-contracts}
+cd migracao-vaadin
+```
+
+### 2) Gerar backend Spring Boot
+> Você pode usar o Spring Initializr (web) ou gerar via curl:
+
+```bash
+curl https://start.spring.io/starter.zip \
+  -d type=maven-project \
+  -d language=java \
+  -d bootVersion=3.3.2 \
+  -d groupId=com.empresa \
+  -d artifactId=backend-api \
+  -d name=backend-api \
+  -d packageName=com.empresa.backend \
+  -d javaVersion=17 \
+  -d dependencies=web,validation,data-jpa,security,actuator,flyway \
+  -o backend-api.zip
+
+unzip backend-api.zip -d .
+rm backend-api.zip
+```
+
+Rodar backend:
+```bash
+cd backend-api
+./mvnw spring-boot:run
+```
+
+### 3) Gerar frontend React com Vite
+```bash
+cd ../frontend-react
+npm create vite@latest . -- --template react-ts
+npm install
+npm install @mui/material @emotion/react @emotion/styled axios react-router-dom
+npm run dev
+```
+
+### 4) Definir contrato OpenAPI
+Crie `shared-contracts/openapi.yaml` com seus endpoints principais (ex.: login, clientes, pedidos).
+
+### 5) Gerar client TypeScript automaticamente (liberando geração de código)
+No `frontend-react`, adicione o gerador OpenAPI:
+```bash
+npm install -D @openapitools/openapi-generator-cli
+npx openapi-generator-cli generate \
+  -i ../shared-contracts/openapi.yaml \
+  -g typescript-axios \
+  -o src/generated/api
+```
+
+Sempre que o contrato mudar, rode novamente o comando para regenerar o código do client.
+
+### 6) Fluxo diário para gerar código "livremente", mas com controle
+1. Escreve/atualiza endpoint no `openapi.yaml`.
+2. Implementa endpoint no `backend-api`.
+3. Roda gerador para atualizar `src/generated/api`.
+4. Usa os tipos e clientes gerados no React.
+5. Commita contrato + backend + client gerado juntos.
+
+### 7) Próximo passo recomendado (primeiro ciclo de migração)
+- Escolha 1 tela Vaadin simples.
+- Extraia regra para endpoint REST no backend.
+- Recrie a tela em React consumindo client gerado.
+- Publique por rota nova atrás do gateway (sem desligar a antiga).
+
 ## Plataforma técnica de suporte à migração
 - **API-first**: OpenAPI + geração de client TypeScript.
 - **Testes**:
